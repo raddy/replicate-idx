@@ -12,6 +12,7 @@ class DataPaths:
     # Standard data paths
     INDEX_2010_X_PATH = DATA_DIR / "INDEX_2010_X.parquet"
     INDEX_2010_SP500_PATH = DATA_DIR / "INDEX_2010_SP500.parquet"
+    CRYPTO_2024_LONG_PATH = DATA_DIR / "CRYPTO_2024_LONG.parquet"
     
     @classmethod
     def get_data_path(cls, filename: str) -> Path:
