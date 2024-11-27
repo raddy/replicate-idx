@@ -28,6 +28,11 @@ class MMOptimizer:
             from .updates import ETEUpdate
             self.objective = ETEObjective()
             self.updater = ETEUpdate()
+        elif measure == 'dr':
+            from .objectives import DRObjective
+            from .updates import DRUpdate
+            self.objective = DRObjective()
+            self.updater = DRUpdate()
         else:
             raise ValueError(f"Unknown measure: {measure}")
         

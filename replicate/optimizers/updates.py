@@ -57,3 +57,41 @@ class ETEUpdate(MMUpdate):
         d = lambda_ / ((p + np.abs(w)) * c1)  # derivative of log term
         c = B @ w + (1/Lmax_A) * (b + d)      # quadratic majorizer minimizer
         return project_weights_kkt(c, u)       # project onto feasible set
+
+class DRUpdate(MMUpdate):
+    def compute_matrices(self, X: np.ndarray, r: np.ndarray):
+        """
+        Precompute matrices needed for DR updates.
+        """
+        m = X.shape[0]
+        A = (1/m) * X.T @ X
+        Lmax_A = np.linalg.eigvalsh(A)[-1]
+        B = (2/Lmax_A) * (A - Lmax_A * np.eye(X.shape[1]))
+        b = (-2/m) * X.T @ r
+        return {'B': B, 'b': b, 'Lmax_A': Lmax_A, 'X': X, 'r': r, 'm': m}
+    
+    def update(
+        self, 
+        w: np.ndarray, 
+        B: np.ndarray, 
+        b: np.ndarray,
+        Lmax_A: float, 
+        X: np.ndarray,
+        r: np.ndarray,
+        m: int,
+        lambda_: float, 
+        p: float, 
+        c1: float, 
+        u: float
+    ) -> np.ndarray:
+        """
+        Single MM update step for DR measure.
+        
+        The update includes term for asymmetric penalization
+        of underperformance.
+        """
+        
+        h = np.minimum(r - X @ w, 0) # Compute negative part for downside risk
+        d = lambda_ / ((p + np.abs(w)) * c1) # Derivative term from sparsity
+        c = B @ w + (1/Lmax_A) * (b + d + 2/m * X.T @ h)
+        return project_weights_kkt(c, u)
