@@ -13,10 +13,12 @@ class TrackingMetrics:
         """Calculate comprehensive tracking metrics."""
 
         # Input validation
-        assert(portfolio_returns.ndim == 1)
-        assert(index_returns.ndim == 1)
-        assert(portfolio_weights.ndim == 1)
-        assert(portfolio_returns.shape[0] == index_returns.shape[0])
+        assert(portfolio_returns.ndim == 1), f"Expected 1D array, got shape {portfolio_returns.shape}"
+        assert(index_returns.ndim == 1), f"Expected 1D array, got shape {index_returns.shape}"
+        assert(portfolio_weights.ndim == 1), f"Expected 1D array, got shape {portfolio_weights.shape}"
+        assert(portfolio_returns.shape[0] == index_returns.shape[0]), \
+            f"Mismatched shapes: portfolio {portfolio_returns.shape} vs index {index_returns.shape}"
+        assert(portfolio_returns.shape[0] > 0), "Empty returns array"
         
         # Basic tracking metrics
         tracking_error = np.sqrt(np.mean((portfolio_returns - index_returns)**2))
@@ -26,8 +28,12 @@ class TrackingMetrics:
         cum_port = np.cumprod(1 + portfolio_returns) - 1
         cum_index = np.cumprod(1 + index_returns) - 1
         
-        # Maximum deviation
-        max_deviation = np.max(np.abs(cum_port - cum_index))
+        # Maximum deviation (handle empty case)
+        deviations = np.abs(cum_port - cum_index)
+        if len(deviations) == 0:
+            max_deviation = np.nan
+        else:
+            max_deviation = np.max(deviations)
         
         # Risk metrics
         port_vol = np.std(portfolio_returns) * np.sqrt(252)  # Annualized
