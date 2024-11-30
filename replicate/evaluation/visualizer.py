@@ -32,7 +32,7 @@ class TrackingVisualizer:
         sns.set_theme(style="whitegrid", font="serif")
         rcParams['font.family'] = 'serif'
         rcParams['font.serif'] = ['Computer Modern Roman']
-        rcParams['text.usetex'] = True
+        rcParams['text.usetex'] = False # Change back
         rcParams['axes.labelsize'] = TrackingVisualizer.FONT_SIZES['axis_label']
         rcParams['axes.titlesize'] = TrackingVisualizer.FONT_SIZES['title']
         rcParams['xtick.labelsize'] = TrackingVisualizer.FONT_SIZES['tick_label']

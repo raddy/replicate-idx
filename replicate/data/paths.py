@@ -1,18 +1,21 @@
 from pathlib import Path
-from typing import Union, Optional
-import os
+from typing import Union, Optional, List
 
 class DataPaths:
     """Manages data paths for the project."""
     
     # Get the path to the project root (one level up from the replicate package)
-    PROJECT_ROOT = Path(__file__).parent.parent.parent
-    DATA_DIR = PROJECT_ROOT / "data"
+    ROOT_DIR = Path(__file__).parent.parent.parent
+    DATA_DIR = ROOT_DIR / "data"
     
     # Standard data paths
     INDEX_2010_X_PATH = DATA_DIR / "INDEX_2010_X.parquet"
     INDEX_2010_SP500_PATH = DATA_DIR / "INDEX_2010_SP500.parquet"
     CRYPTO_2024_LONG_PATH = DATA_DIR / "CRYPTO_2024_LONG.parquet"
+    
+    # New SP500 data paths
+    SP500_RETURNS_PATH = DATA_DIR / "SP500_r_2010_2015.parquet"
+    SP500_COMPONENTS_PATH = DATA_DIR / "SP500_X_2010_2015.parquet"
     
     @classmethod
     def get_data_path(cls, filename: str) -> Path:
@@ -38,12 +41,12 @@ class DataPaths:
         cls.DATA_DIR.mkdir(parents=True, exist_ok=True)
     
     @classmethod
-    def list_data_files(cls, pattern: Optional[str] = "*.parquet") -> list[Path]:
+    def get_data_files(cls, pattern: str) -> List[Path]:
         """
-        List all data files matching the pattern.
+        Get all data files matching the given pattern.
         
         Args:
-            pattern: Glob pattern to match files (default: "*.parquet")
+            pattern: Glob pattern to match files
             
         Returns:
             List of paths to matching data files

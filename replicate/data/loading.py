@@ -1,6 +1,6 @@
 import polars as pl
 from pathlib import Path
-from typing import Optional, Tuple, Union, Literal
+from typing import Optional, Tuple, Union, Literal, List, Dict
 from .paths import DataPaths
 
 class DataLoader:
@@ -10,6 +10,7 @@ class DataLoader:
     SP500_INDEX = "SP500_INDEX"
     SP500_CONSTITUENTS = "SP500_CONSTITUENTS"
     CRYPTO_RETURNS = "CRYPTO_RETURNS"
+    SP500_2010_2015 = "SP500_2010_2015"  # New data type for the 2010-2015 SP500 dataset
     
     def __init__(self, date_col: str = 'Date'):
         """
@@ -91,8 +92,8 @@ class DataLoader:
         df: pl.DataFrame,
         start_date: Optional[str] = None,
         end_date: Optional[str] = None,
-        max_null_pct: float = 0.01  # Allow 1% nulls by default
-    ) -> Tuple[list[str], dict[str, tuple[str, str]]]:
+        max_null_pct: float = 0.01
+    ) -> Tuple[List[str], Dict[str, Tuple[str, str]]]:
         """
         Get available crypto symbols and their availability dates.
         
@@ -232,6 +233,41 @@ class DataLoader:
         
         return wide_lf.select('timestamp'), wide_lf.drop('timestamp')
 
+    def load_sp500_2010_2015(
+        self,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+        date_col: str = 'Date',
+        **kwargs
+    ) -> Tuple[pl.LazyFrame, pl.LazyFrame]:
+        """
+        Load 2010-2015 SP500 return and feature data.
+        
+        Args:
+            start_date: Start date for data range (format: 'YYYY-MM-DD')
+            end_date: End date for data range (format: 'YYYY-MM-DD')
+            **kwargs: Additional arguments passed to load()
+            
+        Returns:
+            Tuple of (returns_lf, features_lf) as LazyFrames
+        """
+        # Load returns and features
+        returns_lf = pl.scan_parquet(DataPaths.SP500_RETURNS_PATH)
+        features_lf = pl.scan_parquet(DataPaths.SP500_COMPONENTS_PATH)
+        
+        # Apply date filters if specified
+        if start_date or end_date:
+            date_filter = []
+            if start_date:
+                date_filter.append(pl.col(date_col).cast(pl.Date) >= pl.lit(start_date).cast(pl.Date))
+            if end_date:
+                date_filter.append(pl.col(date_col).cast(pl.Date) <= pl.lit(end_date).cast(pl.Date))
+            
+            returns_lf = returns_lf.filter(pl.all_horizontal(date_filter))
+            features_lf = features_lf.filter(pl.all_horizontal(date_filter))
+        
+        return returns_lf, features_lf
+
     def load_data(
         self,
         data_type: Optional[str] = None,
@@ -241,22 +277,6 @@ class DataLoader:
     ) -> Union[Tuple[pl.LazyFrame, Optional[str]], Tuple[pl.LazyFrame, pl.LazyFrame]]:
         """
         Load financial data from standard paths or custom path.
-        
-        Args:
-            data_type: Type of data to load (e.g., "SP500_INDEX", "SP500_CONSTITUENTS", "CRYPTO_RETURNS")
-                      If None, path must be provided
-            path: Custom path to load data from
-                 If provided, data_type is ignored
-            target_symbol: For CRYPTO_RETURNS, the symbol to use as target (e.g., 'ETH')
-            **kwargs: Additional arguments passed to load()
-            
-        Returns:
-            For standard data: Tuple of (LazyFrame, optional return column name)
-            For crypto data: Tuple of (target_returns, constituent_returns) as LazyFrames
-            
-        Raises:
-            ValueError: If neither data_type nor path is provided
-            ValueError: If target_symbol is not found in crypto data
         """
         if path is not None:
             return self.load(path, **kwargs)
@@ -264,9 +284,11 @@ class DataLoader:
         if data_type is None:
             raise ValueError("Either data_type or path must be provided")
             
-        # Handle crypto returns separately
+        # Handle special data types
         if data_type == self.CRYPTO_RETURNS:
             return self.load_crypto_returns(target_symbol=target_symbol, **kwargs)
+        elif data_type == self.SP500_2010_2015:
+            return self.load_sp500_2010_2015(**kwargs)
             
         # Map data types to paths
         path_map = {
@@ -277,7 +299,7 @@ class DataLoader:
         if data_type not in path_map:
             raise ValueError(
                 f"Unknown data type: {data_type}. "
-                f"Available types: {list(path_map.keys()) + [self.CRYPTO_RETURNS]}"
+                f"Available types: {list(path_map.keys()) + [self.CRYPTO_RETURNS, self.SP500_2010_2015]}"
             )
         
         return self.load(path_map[data_type], **kwargs)
