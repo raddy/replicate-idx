@@ -135,7 +135,7 @@ class DataLoader:
         returns_lf = self._apply_date_filter(returns_lf, start_date, end_date)
         features_lf = self._apply_date_filter(features_lf, start_date, end_date)
         
-        return returns_lf, features_lf
+        return features_lf, returns_lf
     
     def load(
         self,
