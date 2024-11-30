@@ -95,3 +95,83 @@ class DRUpdate(MMUpdate):
         d = lambda_ / ((p + np.abs(w)) * c1) # Derivative term from sparsity
         c = B @ w + (1/Lmax_A) * (b + d + 2/m * X.T @ h)
         return project_weights_kkt(c, u)
+
+class HETEUpdate(MMUpdate):
+    def compute_matrices(self, X: np.ndarray, r: np.ndarray):
+        """Nothing to precompute for HETE as matrices change each iteration."""
+        return {'X': X, 'r': r}
+        
+    def update(
+        self,
+        w: np.ndarray,
+        X: np.ndarray,
+        r: np.ndarray,
+        lambda_: float,
+        p: float,
+        c1: float,
+        hub: float,
+        u: float,
+        **kwargs
+    ) -> np.ndarray:
+        """
+        Perform single MM update step for HETE measure.
+        
+        Uses quadratic majorizer based on Huber loss.
+        """
+        m = len(r)
+        errors = r - X @ w
+        
+        # Compute weights for quadratic approximation
+        alpha = np.ones(m)
+        is_outlier = np.abs(errors) > hub
+        alpha[is_outlier] = hub / np.abs(errors[is_outlier])
+        
+        # Construct weighted problem matrices
+        Q = (1/m) * X.T @ np.diag(alpha) @ X
+        Lmax = np.linalg.eigvalsh(Q)[-1]
+        
+        # Sparsity term
+        d = lambda_ / ((p + np.abs(w)) * c1)
+        
+        # Combined update
+        c = (1/Lmax) * (
+            2*(Q - Lmax*np.eye(len(w))) @ w - 
+            2/m * X.T @ (alpha * r) + 
+            d
+        )
+        
+        return project_weights_kkt(c, u)
+
+class HDRUpdate(MMUpdate):
+    def compute_matrices(self, X: np.ndarray, r: np.ndarray):
+        """Nothing to precompute for HDR as matrices change each iteration."""
+        return {'X': X, 'r': r}
+        
+    def update(self, w: np.ndarray, X: np.ndarray, r: np.ndarray,
+               lambda_: float, p: float, c1: float, hub: float, u: float, **kwargs) -> np.ndarray:
+        """Single MM update step for HDR measure."""
+        m = len(r)
+        tmp = r - X @ w
+        
+        alpha = np.ones(m)
+        positive_and_below_hub = (tmp > 0) & (tmp <= hub)
+        above_hub = tmp > hub
+        
+        if np.any(positive_and_below_hub):
+            alpha[positive_and_below_hub] = 1.0  # quadratic region
+        if np.any(above_hub):
+            alpha[above_hub] = hub / tmp[above_hub]  # linear region
+        
+        Q = (1/m) * X.T @ np.diag(alpha) @ X
+        Lmax = np.linalg.eigvalsh(Q)[-1]
+        
+        d = lambda_ / ((p + np.abs(w)) * c1)
+        q = -np.maximum(X @ w - r, 0)
+        
+        c = (1/Lmax) * (
+            2*(Q - Lmax*np.eye(len(w))) @ w + 
+            2/m * X.T @ (alpha * (q - r)) + 
+            d
+        )
+        
+        return project_weights_kkt(c, u)

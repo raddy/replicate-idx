@@ -33,6 +33,16 @@ class MMOptimizer:
             from .updates import DRUpdate
             self.objective = DRObjective()
             self.updater = DRUpdate()
+        elif measure == 'hete':
+            from .objectives import HETEObjective
+            from .updates import HETEUpdate
+            self.objective = HETEObjective()
+            self.updater = HETEUpdate()
+        elif measure == 'hdr':
+            from .objectives import HDRObjective
+            from .updates import HDRUpdate
+            self.objective = HDRObjective()
+            self.updater = HDRUpdate()
         else:
             raise ValueError(f"Unknown measure: {measure}")
         
@@ -46,6 +56,7 @@ class MMOptimizer:
         max_iter: int = 1000,
         thres: float = 1e-9,
         w0: Optional[np.ndarray] = None,
+        hub: float = 1.0,
     ) -> Dict[str, Any]:
         """
         Optimize portfolio weights using MM algorithm.
@@ -59,6 +70,7 @@ class MMOptimizer:
             max_iter: Maximum number of iterations (default: 1000)
             thres: Threshold for setting weights to zero (default: 1e-9)
             w0: Initial weights (default: uniform)
+            hub: Huber parameter for HETE/HDR measures (default: 1.0)
             
         Returns:
             Dictionary containing:
@@ -104,8 +116,25 @@ class MMOptimizer:
             
             while True:
                 if k >= max_iter:
-                    break
+                    return {
+                        'weights': w,
+                        'objective_values': F_v[:k],
+                        'iterations': k,
+                        'success': False
+                    }
                     
+                # Update weights
+                w_old = w.copy()
+                
+                # Pass hub parameter for Huber methods
+                extra_params = {'hub': hub} if self.measure in ['hete', 'hdr'] else {}
+                
+                # Compute objective
+                F_v[k] = self.objective.compute(
+                    X=X, r=r, w=w, lambda_=lambda_, 
+                    p=p, c1=c1, m=m, **extra_params
+                )
+                
                 # MM update with acceleration
                 w1 = self.updater.update(
                     w=w,
@@ -113,7 +142,8 @@ class MMOptimizer:
                     p=p,
                     c1=c1,
                     u=u,
-                    **matrices
+                    **matrices,
+                    **extra_params
                 )
                 
                 w2 = self.updater.update(
@@ -122,7 +152,8 @@ class MMOptimizer:
                     p=p,
                     c1=c1,
                     u=u,
-                    **matrices
+                    **matrices,
+                    **extra_params
                 )
                 
                 # Acceleration
@@ -141,7 +172,8 @@ class MMOptimizer:
                             lambda_=lambda_,
                             p=p,
                             c1=c1,
-                            m=m
+                            m=m,
+                            **extra_params
                         )
                         w = w_new
                         break
@@ -156,7 +188,8 @@ class MMOptimizer:
                         lambda_=lambda_,
                         p=p,
                         c1=c1,
-                        m=m
+                        m=m,
+                        **extra_params
                     )
                     
                     if flg == 0 and F_v[k] * (1 - np.sign(F_v[k])*1e-9) >= F_v[max(k-1, 0)]:
