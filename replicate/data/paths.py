@@ -8,14 +8,13 @@ class DataPaths:
     ROOT_DIR = Path(__file__).parent.parent.parent
     DATA_DIR = ROOT_DIR / "data"
     
-    # Standard data paths
-    INDEX_2010_X_PATH = DATA_DIR / "INDEX_2010_X.parquet"
-    INDEX_2010_SP500_PATH = DATA_DIR / "INDEX_2010_SP500.parquet"
     CRYPTO_2024_LONG_PATH = DATA_DIR / "CRYPTO_2024_LONG.parquet"
     
-    # New SP500 data paths
-    SP500_RETURNS_PATH = DATA_DIR / "SP500_r_2010_2015.parquet"
-    SP500_COMPONENTS_PATH = DATA_DIR / "SP500_X_2010_2015.parquet"
+    # SP500 data paths
+    SP500_2010_X_PATH = DATA_DIR / "SP500_X_2010.parquet"
+    SP500_2010_R_PATH = DATA_DIR / "SP500_r_2010.parquet"
+    SP500_2010_2015_X_PATH = DATA_DIR / "SP500_r_2010_2015.parquet"
+    SP500_2010_2015_R_PATH = DATA_DIR / "SP500_X_2010_2015.parquet"
     
     @classmethod
     def get_data_path(cls, filename: str) -> Path:
@@ -62,7 +61,10 @@ class DataPaths:
             True if all paths exist, False otherwise
         """
         standard_paths = [
-            cls.INDEX_2010_X_PATH,
-            cls.INDEX_2010_SP500_PATH
+            cls.SP500_2010_X_PATH,
+            cls.SP500_2010_R_PATH,
+            cls.SP500_2010_2015_X_PATH,
+            cls.SP500_2010_2015_R_PATH,
+            cls.CRYPTO_2024_LONG_PATH
         ]
         return all(path.exists() for path in standard_paths)

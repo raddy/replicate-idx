@@ -32,7 +32,7 @@ class TrackingVisualizer:
         sns.set_theme(style="whitegrid", font="serif")
         rcParams['font.family'] = 'serif'
         rcParams['font.serif'] = ['Computer Modern Roman']
-        rcParams['text.usetex'] = False # Change back
+        rcParams['text.usetex'] = True
         rcParams['axes.labelsize'] = TrackingVisualizer.FONT_SIZES['axis_label']
         rcParams['axes.titlesize'] = TrackingVisualizer.FONT_SIZES['title']
         rcParams['xtick.labelsize'] = TrackingVisualizer.FONT_SIZES['tick_label']
@@ -113,9 +113,9 @@ class TrackingVisualizer:
         mid_test = test_dates[len(test_dates)//2]
         y_pos = ax.get_ylim()[1] * 0.95
         ax.text(mid_train, y_pos, 'Training', 
-               horizontalalignment='center', verticalalignment='bottom')
+               horizontalalignment='center', verticalalignment='bottom', fontsize=9)
         ax.text(mid_test, y_pos, 'Testing', 
-               horizontalalignment='center', verticalalignment='bottom')
+               horizontalalignment='center', verticalalignment='bottom', fontsize=9)
 
     @staticmethod
     def _plot_cumulative_returns(ax, dates, cum_port, cum_index, title=""):
@@ -129,13 +129,28 @@ class TrackingVisualizer:
         TrackingVisualizer._style_axis(ax)
 
     @staticmethod
-    def _plot_tracking_difference(ax, dates, tracking_diff):
+    def _plot_tracking_difference(ax, dates, tracking_diff, test_dates=None, test_tracking=None):
         """Plot tracking difference."""
+        # Plot absolute tracking on primary axis
         ax.fill_between(dates, tracking_diff, 0,
                        color=TrackingVisualizer.COLORS['tracking_fill'], alpha=0.3)
         ax.plot(dates, tracking_diff,
-               color=TrackingVisualizer.COLORS['tracking'], linewidth=1)
+               color=TrackingVisualizer.COLORS['tracking'], linewidth=1,
+               label='Absolute Tracking')
         ax.axhline(y=0, color='black', linestyle='-', alpha=0.3)
+        
+        # Add relative test tracking line on secondary axis if provided
+        if test_dates is not None and test_tracking is not None:
+            ax2 = ax.twinx()
+            ax2.plot(test_dates, test_tracking,
+                    color='darkblue', linewidth=1.5, linestyle='--',
+                    label='Relative to Test Start')
+            ax2.spines['right'].set_color('darkblue')
+            ax2.tick_params(axis='y', colors='darkblue')
+            # Set reasonable limits for secondary axis
+            abs_max = max(abs(test_tracking.min()), abs(test_tracking.max()))
+            ax2.set_ylim(-abs_max * 1.1, abs_max * 1.1)
+        
         ax.set_title('Tracking Difference (\%)')
         TrackingVisualizer._style_axis(ax)
 
@@ -180,6 +195,13 @@ class TrackingVisualizer:
                 transform=ax.transAxes)
 
     @staticmethod
+    def _convert_dates(dates):
+        """Convert string dates to datetime objects if needed."""
+        if isinstance(dates[0], str):
+            return np.array([datetime.strptime(d, '%Y-%m-%d') for d in dates])
+        return dates
+
+    @staticmethod
     def plot_tracking_analysis(
         dates: np.ndarray,
         portfolio_returns: np.ndarray,
@@ -207,6 +229,9 @@ class TrackingVisualizer:
         """
         TrackingVisualizer.setup_style()
         
+        # Convert dates if needed
+        dates = TrackingVisualizer._convert_dates(dates)
+        
         # Create figure with gridspec for flexible layout
         fig = plt.figure(figsize=figsize, constrained_layout=True)
         gs = fig.add_gridspec(3, 4, height_ratios=[2, 1, 2])
@@ -220,7 +245,7 @@ class TrackingVisualizer:
         # Tracking difference
         ax2 = fig.add_subplot(gs[1, :])
         tracking_diff = (cum_port - cum_index) * 100
-        TrackingVisualizer._plot_tracking(ax2, dates, tracking_diff)
+        TrackingVisualizer._plot_tracking_difference(ax2, dates, tracking_diff)
         
         # Weight allocation
         ax3 = fig.add_subplot(gs[2, :3])
@@ -326,6 +351,10 @@ class TrackingVisualizer:
         """
         TrackingVisualizer.setup_style()
         
+        # Convert dates if needed
+        train_dates = TrackingVisualizer._convert_dates(train_dates)
+        test_dates = TrackingVisualizer._convert_dates(test_dates)
+        
         # Create figure with gridspec
         fig = plt.figure(figsize=figsize, constrained_layout=True)
         gs = fig.add_gridspec(3, 4, height_ratios=[2, 1, 1])
@@ -344,14 +373,23 @@ class TrackingVisualizer:
         # Calculate cumulative returns
         cum_port = np.cumprod(1 + all_port_returns) - 1
         cum_index = np.cumprod(1 + all_index_returns) - 1
+
+        tracking_diff = (cum_port - cum_index) * 100  # Keep the original continuous tracking
         
+        # Calculate test period relative tracking
+        test_start_idx = len(train_dates)  # Index where test period starts
+        test_tracking_relative = tracking_diff[test_start_idx:] - tracking_diff[test_start_idx]
+
         # Plot each component
         TrackingVisualizer._plot_period_background(ax1, train_dates, test_dates)
         TrackingVisualizer._plot_cumulative_returns(ax1, all_dates, cum_port, cum_index, title)
         
         TrackingVisualizer._plot_period_background(ax2, train_dates, test_dates)
-        tracking_diff = (cum_port - cum_index) * 100
-        TrackingVisualizer._plot_tracking_difference(ax2, all_dates, tracking_diff)
+        TrackingVisualizer._plot_tracking_difference(
+            ax2, all_dates, tracking_diff,
+            test_dates=test_dates,
+            test_tracking=test_tracking_relative
+        )
         
         TrackingVisualizer._plot_weights(ax3, weights, asset_names)
         
