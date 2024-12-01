@@ -2,6 +2,7 @@ import numpy as np
 from typing import Optional, Dict, Any, Literal
 from .objectives import TrackingObjective
 from .updates import MMUpdate
+from .kkt import project_weights_kkt
 
 class MMOptimizer:
     """MM optimization framework for sparse index tracking."""
@@ -179,7 +180,6 @@ class MMOptimizer:
                         break
                         
                     w_new = w - 2*a*R + a**2*U
-                    from .kkt import project_weights_kkt  # assuming this exists
                     w_new = project_weights_kkt(-2*w_new, u)
                     F_v[k] = self.objective.compute(
                         X=X,

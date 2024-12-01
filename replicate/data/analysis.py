@@ -46,7 +46,7 @@ def train_test_split_data(
         }
     """
     # Load data lazily
-    target, constituents = loader.load_data(
+    target, constituents = loader.load(
         data_type=data_type,
         target_symbol=target_symbol,
         start_date=start_date,
